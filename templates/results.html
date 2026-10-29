@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Results — {{ data.filename }} — Legal Document Summarizer</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,400;0,700;1,300&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-light">
+
+    <!-- Legal Disclaimer Notice Banner -->
+    <div class="legal-disclaimer-banner">
+        <div class="container d-flex align-items-center justify-content-between py-2">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-shield-exclamation fs-5 me-2 text-warning"></i>
+                <span class="small fw-medium">
+                    <strong>Preliminary Document Assistance Notice:</strong> This summary and clause breakdown is automatically generated via Natural Language Processing (Extractive Summarization). It is intended for rapid document triage and study purposes, and <strong>does not constitute legal advice</strong>.
+                </span>
+            </div>
+            <button type="button" class="btn-close btn-close-white ms-3 d-none d-md-inline" onclick="this.parentElement.parentElement.remove()" aria-label="Close"></button>
+        </div>
+    </div>
+
+    <!-- Navigation Header -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-navy shadow-sm">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center fw-bold" href="{{ url_for('index') }}">
+                <span class="brand-icon me-2"><i class="bi bi-journal-text"></i></span>
+                <span>LegalDoc<span class="text-accent">AI</span></span>
+            </a>
+            <div class="navbar-nav ms-auto d-flex flex-row align-items-center gap-3">
+                <a href="{{ url_for('index') }}" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                    <i class="bi bi-arrow-left me-1"></i> Analyze Another Document
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Results Container -->
+    <main class="container py-4">
+
+        <!-- Top Header Card: Document Metadata & Metrics -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="row align-items-center g-3">
+                    <div class="col-lg-7">
+                        <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                            <span class="badge bg-primary px-3 py-2 text-uppercase fw-semibold">
+                                <i class="bi bi-file-earmark-text me-1"></i> {{ data.metadata.file_extension }}
+                            </span>
+                            <span class="badge bg-secondary-subtle text-secondary border px-3 py-2">
+                                <i class="bi bi-gear-wide-connected me-1"></i> Method: {{ data.summaries.method_used|upper }}
+                            </span>
+                            <span class="badge bg-light text-muted border px-2 py-2 small">
+                                <i class="bi bi-clock me-1"></i> {{ data.processed_at }}
+                            </span>
+                        </div>
+                        <h3 class="fw-bold text-navy mb-1 text-truncate" title="{{ data.filename }}">{{ data.filename }}</h3>
+                        <p class="text-muted small mb-0">
+                            Extracted from {{ data.metadata.file_size_formatted }} document • Fully traceable extractive output
+                        </p>
+                    </div>
+
+                    <!-- Metric Counters -->
+                    <div class="col-lg-5">
+                        <div class="row g-2 text-center">
+                            <div class="col-4">
+                                <div class="metric-box p-2 rounded bg-light border">
+                                    <div class="metric-num fw-bold text-navy fs-5">{{ data.metadata.word_count }}</div>
+                                    <div class="metric-label text-muted extra-small">Total Words</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="metric-box p-2 rounded bg-light border">
+                                    <div class="metric-num fw-bold text-primary fs-5">{{ data.total_sentences }}</div>
+                                    <div class="metric-label text-muted extra-small">Sentences</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="metric-box p-2 rounded bg-light border">
+                                    <div class="metric-num fw-bold text-success fs-5">~{{ data.reading_time_mins }}m</div>
+                                    <div class="metric-label text-muted extra-small">Read Time</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row: Summary View and Controls -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-8">
+                <!-- Summary Card with Preset Tabs -->
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom pt-3 pb-2 px-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <!-- Summary Presets Navigation -->
+                        <ul class="nav nav-tabs card-header-tabs" id="summaryTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="short-tab" data-bs-toggle="tab" data-bs-target="#short-pane" type="button" role="tab" onclick="setActiveLevel('short')">
+                                    <span class="fw-semibold">Short</span>
+                                    <span class="badge bg-success-subtle text-success ms-1 small">-{{ data.summaries.short.reduction_percent }}%</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="medium-tab" data-bs-toggle="tab" data-bs-target="#medium-pane" type="button" role="tab" onclick="setActiveLevel('medium')">
+                                    <span class="fw-semibold">Medium</span>
+                                    <span class="badge bg-primary-subtle text-primary ms-1 small">-{{ data.summaries.medium.reduction_percent }}%</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="detailed-tab" data-bs-toggle="tab" data-bs-target="#detailed-pane" type="button" role="tab" onclick="setActiveLevel('detailed')">
+                                    <span class="fw-semibold">Detailed</span>
+                                    <span class="badge bg-info-subtle text-info ms-1 small">-{{ data.summaries.detailed.reduction_percent }}%</span>
+                                </button>
+                            </li>
+                        </ul>
+
+                        <!-- Action Buttons: Copy & Download -->
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCopySummary" onclick="copyCurrentSummary()" title="Copy active summary to clipboard">
+                                <i class="bi bi-clipboard me-1"></i> <span id="copyBtnText">Copy</span>
+                            </button>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-download me-1"></i> Download
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                    <li>
+                                        <a class="dropdown-item small" id="downloadTxtLink" href="{{ url_for('download_summary', session_id=data.session_id, level='medium', fmt='txt') }}">
+                                            <i class="bi bi-filetype-txt me-2 text-primary"></i> Summary as Plain Text (.txt)
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item small" id="downloadJsonLink" href="{{ url_for('download_summary', session_id=data.session_id, level='medium', fmt='json') }}">
+                                            <i class="bi bi-filetype-json me-2 text-warning"></i> Full Analysis Data (.json)
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item small" href="#" onclick="window.print(); return false;">
+                                            <i class="bi bi-printer me-2 text-muted"></i> Print / Save as PDF
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary Panes -->
+                    <div class="card-body p-4">
+                        <div class="tab-content" id="summaryTabContent">
+                            <!-- Short Summary Pane -->
+                            <div class="tab-pane fade" id="short-pane" role="tabpanel">
+                                <div class="summary-stats-bar d-flex justify-content-between small text-muted mb-3 pb-2 border-bottom">
+                                    <span><strong>{{ data.summaries.short.sentence_count }}</strong> key sentences selected</span>
+                                    <span><strong>{{ data.summaries.short.word_count }}</strong> words (reduced by {{ data.summaries.short.reduction_percent }}%)</span>
+                                </div>
+                                <div class="summary-text-box legal-typography" id="summaryTextShort">
+                                    {% for sentence in data.summaries.short.sentences %}
+                                        <p class="summary-sentence mb-2"><span class="sentence-bullet me-2">§</span>{{ sentence }}</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Medium Summary Pane (Default) -->
+                            <div class="tab-pane fade show active" id="medium-pane" role="tabpanel">
+                                <div class="summary-stats-bar d-flex justify-content-between small text-muted mb-3 pb-2 border-bottom">
+                                    <span><strong>{{ data.summaries.medium.sentence_count }}</strong> key sentences selected</span>
+                                    <span><strong>{{ data.summaries.medium.word_count }}</strong> words (reduced by {{ data.summaries.medium.reduction_percent }}%)</span>
+                                </div>
+                                <div class="summary-text-box legal-typography" id="summaryTextMedium">
+                                    {% for sentence in data.summaries.medium.sentences %}
+                                        <p class="summary-sentence mb-2"><span class="sentence-bullet me-2">§</span>{{ sentence }}</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Detailed Summary Pane -->
+                            <div class="tab-pane fade" id="detailed-pane" role="tabpanel">
+                                <div class="summary-stats-bar d-flex justify-content-between small text-muted mb-3 pb-2 border-bottom">
+                                    <span><strong>{{ data.summaries.detailed.sentence_count }}</strong> key sentences selected</span>
+                                    <span><strong>{{ data.summaries.detailed.word_count }}</strong> words (reduced by {{ data.summaries.detailed.reduction_percent }}%)</span>
+                                </div>
+                                <div class="summary-text-box legal-typography" id="summaryTextDetailed">
+                                    {% for sentence in data.summaries.detailed.sentences %}
+                                        <p class="summary-sentence mb-2"><span class="sentence-bullet me-2">§</span>{{ sentence }}</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer: Traceability Note -->
+                    <div class="card-footer bg-light border-top py-2 px-4 d-flex justify-content-between align-items-center">
+                        <span class="extra-small text-muted">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i> Extractive sentences preserve 100% original text & negations.
+                        </span>
+                        <button type="button" class="btn btn-link btn-sm text-decoration-none extra-small p-0" data-bs-toggle="modal" data-bs-target="#originalTextModal">
+                            <i class="bi bi-eye me-1"></i> View Full Original Document
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Side Column: Document Quick Intelligence Card -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom py-3 px-4">
+                        <h6 class="fw-bold text-navy mb-0 d-flex align-items-center">
+                            <i class="bi bi-pie-chart-fill text-primary me-2"></i> Document Breakdown
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Key Counts List -->
+                        <ul class="list-group list-group-flush mb-4">
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                                <span class="small text-muted"><i class="bi bi-folder-check text-primary me-2"></i>Clause Categories</span>
+                                <span class="badge bg-primary rounded-pill">{{ data.extracted_info.stats.total_clause_categories }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                                <span class="small text-muted"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Legal Obligations ("shall", "must")</span>
+                                <span class="badge bg-danger rounded-pill">{{ data.extracted_info.stats.total_obligations }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                                <span class="small text-muted"><i class="bi bi-signpost-split text-warning me-2"></i>Legal Conditions ("if", "provided")</span>
+                                <span class="badge bg-warning text-dark rounded-pill">{{ data.extracted_info.stats.total_conditions }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                                <span class="small text-muted"><i class="bi bi-shield-slash text-secondary me-2"></i>Exceptions ("unless", "except")</span>
+                                <span class="badge bg-secondary rounded-pill">{{ data.extracted_info.stats.total_exceptions }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                                <span class="small text-muted"><i class="bi bi-calendar-event text-info me-2"></i>Dates & Timeframes</span>
+                                <span class="badge bg-info rounded-pill">{{ data.extracted_info.stats.total_dates }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                                <span class="small text-muted"><i class="bi bi-cash-stack text-success me-2"></i>Monetary Amounts Mentioned</span>
+                                <span class="badge bg-success rounded-pill">{{ data.extracted_info.stats.total_monetary }}</span>
+                            </li>
+                        </ul>
+
+                        <!-- Identified Clause Badges -->
+                        <h6 class="fw-bold text-navy extra-small text-uppercase mb-2">Clauses Detected in Document:</h6>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for clause in data.extracted_info.clauses %}
+                                <span class="badge bg-{{ clause.badge_color }}-subtle text-{{ clause.badge_color }} border border-{{ clause.badge_color }} p-2">
+                                    {{ clause.title }} ({{ clause.count }})
+                                </span>
+                            {% else %}
+                                <span class="text-muted extra-small">No standard clause patterns triggered.</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Detailed Legal Information & Entity Extraction Tabs -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom pt-3 pb-2 px-4">
+                <ul class="nav nav-tabs card-header-tabs" id="entityTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="clauses-tab" data-bs-toggle="tab" data-bs-target="#clauses-pane" type="button" role="tab">
+                            <i class="bi bi-journal-bookmark me-1 text-primary"></i> Clauses ({{ data.extracted_info.clauses|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="obligations-tab" data-bs-toggle="tab" data-bs-target="#obligations-pane" type="button" role="tab">
+                            <i class="bi bi-exclamation-circle me-1 text-danger"></i> Obligations ({{ data.extracted_info.obligations|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="conditions-tab" data-bs-toggle="tab" data-bs-target="#conditions-pane" type="button" role="tab">
+                            <i class="bi bi-signpost-2 me-1 text-warning"></i> Conditions & Triggers ({{ data.extracted_info.conditions|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="exceptions-tab" data-bs-toggle="tab" data-bs-target="#exceptions-pane" type="button" role="tab">
+                            <i class="bi bi-shield-x me-1 text-secondary"></i> Exceptions & Carve-Outs ({{ data.extracted_info.exceptions|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="dates-tab" data-bs-toggle="tab" data-bs-target="#dates-pane" type="button" role="tab">
+                            <i class="bi bi-calendar3 me-1 text-info"></i> Dates & Notice ({{ data.extracted_info.dates|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="money-tab" data-bs-toggle="tab" data-bs-target="#money-pane" type="button" role="tab">
+                            <i class="bi bi-currency-dollar me-1 text-success"></i> Monetary Terms ({{ data.extracted_info.monetary_amounts|length }})
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="tab-content" id="entityTabContent">
+                    <!-- Tab 1: Clauses Breakdown -->
+                    <div class="tab-pane fade show active" id="clauses-pane" role="tabpanel">
+                        <div class="row g-3">
+                            {% for clause in data.extracted_info.clauses %}
+                            <div class="col-md-6">
+                                <div class="border rounded-3 p-3 h-100 bg-white">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="fw-bold text-navy mb-0">
+                                            <span class="badge bg-{{ clause.badge_color }} me-1">{{ loop.index }}</span>
+                                            {{ clause.title }}
+                                        </h6>
+                                        <span class="badge bg-light text-muted border small">{{ clause.count }} mentions</span>
+                                    </div>
+                                    <div class="clause-matches mt-2">
+                                        {% for match in clause.matches %}
+                                            <div class="clause-match-item p-2 mb-2 bg-light rounded small border-start border-3 border-{{ clause.badge_color }}">
+                                                <div class="text-secondary mb-1 extra-small fw-semibold">Matched term: "{{ match.matched_keyword }}"</div>
+                                                <div class="text-dark">{{ match.text }}</div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="col-12 text-center py-4 text-muted">
+                                <i class="bi bi-search fs-3 d-block mb-2"></i>
+                                No standard clause categories detected in this document.
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Obligations ("shall", "must") -->
+                    <div class="tab-pane fade" id="obligations-pane" role="tabpanel">
+                        <p class="text-muted small mb-3">
+                            Mandatory duties, covenants, and binding obligations identified by modal verb cues:
+                        </p>
+                        <div class="list-group">
+                            {% for obl in data.extracted_info.obligations %}
+                                <div class="list-group-item list-group-item-action border-start border-4 border-danger mb-2 rounded-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="badge bg-danger-subtle text-danger text-uppercase extra-small">
+                                            Duty Marker: {{ obl.keyword }}
+                                        </span>
+                                        <span class="text-muted extra-small">Sentence #{{ obl.sentence_index + 1 }}</span>
+                                    </div>
+                                    <div class="text-dark small">{{ obl.text }}</div>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4 text-muted">No explicit obligations identified.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: Conditions & Triggers ("if", "provided that") -->
+                    <div class="tab-pane fade" id="conditions-pane" role="tabpanel">
+                        <p class="text-muted small mb-3">
+                            Contingent clauses, rights triggered by events, and prerequisites:
+                        </p>
+                        <div class="list-group">
+                            {% for cond in data.extracted_info.conditions %}
+                                <div class="list-group-item list-group-item-action border-start border-4 border-warning mb-2 rounded-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="badge bg-warning-subtle text-dark text-uppercase extra-small">
+                                            Condition Trigger: {{ cond.keyword }}
+                                        </span>
+                                        <span class="text-muted extra-small">Sentence #{{ cond.sentence_index + 1 }}</span>
+                                    </div>
+                                    <div class="text-dark small">{{ cond.text }}</div>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4 text-muted">No conditional triggers identified.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: Exceptions & Carve-Outs ("unless", "except") -->
+                    <div class="tab-pane fade" id="exceptions-pane" role="tabpanel">
+                        <p class="text-muted small mb-3">
+                            Crucial exceptions, exclusions, and statutory carve-outs that qualify general rules:
+                        </p>
+                        <div class="list-group">
+                            {% for exc in data.extracted_info.exceptions %}
+                                <div class="list-group-item list-group-item-action border-start border-4 border-secondary mb-2 rounded-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="badge bg-secondary-subtle text-secondary text-uppercase extra-small">
+                                            Carve-Out Marker: {{ exc.keyword }}
+                                        </span>
+                                        <span class="text-muted extra-small">Sentence #{{ exc.sentence_index + 1 }}</span>
+                                    </div>
+                                    <div class="text-dark small">{{ exc.text }}</div>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4 text-muted">No explicit carve-outs or exceptions identified.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Tab 5: Dates & Notice Periods -->
+                    <div class="tab-pane fade" id="dates-pane" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 25%;">Date / Timeframe</th>
+                                        <th>Surrounding Contract Context</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for d in data.extracted_info.dates %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-info-subtle text-info-emphasis border border-info px-2 py-1 fs-6">
+                                                <i class="bi bi-clock-history me-1"></i> {{ d.date }}
+                                            </span>
+                                        </td>
+                                        <td class="small text-muted">{{ d.context }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="2" class="text-center text-muted py-3">No dates or timeframes detected.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab 6: Monetary Figures -->
+                    <div class="tab-pane fade" id="money-pane" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 25%;">Amount Mentioned</th>
+                                        <th>Contractual Context</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for m in data.extracted_info.monetary_amounts %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-success-subtle text-success-emphasis border border-success px-2 py-1 fs-6">
+                                                <i class="bi bi-cash me-1"></i> {{ m.amount }}
+                                            </span>
+                                        </td>
+                                        <td class="small text-muted">{{ m.context }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="2" class="text-center text-muted py-3">No monetary amounts or financial figures detected.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal: Full Original Document with Extractive Highlighter -->
+    <div class="modal fade" id="originalTextModal" tabindex="-1" aria-labelledby="originalTextModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-navy text-white">
+                    <h5 class="modal-title" id="originalTextModalLabel">
+                        <i class="bi bi-file-earmark-text me-2"></i> Original Document Text — Sentence Verification
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 small mb-3">
+                        <i class="bi bi-info-circle me-1"></i> Sentences selected in the <strong>Medium Summary</strong> are highlighted in <mark class="px-2 py-1 rounded bg-warning-subtle border border-warning">yellow</mark> below to prove 100% extractive traceability.
+                    </div>
+                    <div class="original-document-view legal-typography p-3 bg-light rounded border">
+                        {% set medium_indices = data.summaries.medium.sentence_indices %}
+                        {% for s in data.all_sentences %}
+                            {% if s.index in medium_indices %}
+                                <mark class="summary-highlight px-1 rounded" title="Included in summary (Sentence #{{ s.index + 1 }})">{{ s.text }}</mark> 
+                            {% else %}
+                                <span>{{ s.text }}</span> 
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden session and download state for JS -->
+    <script>
+        const SESSION_ID = "{{ data.session_id }}";
+        let activeLevel = "medium";
+
+        function setActiveLevel(level) {
+            activeLevel = level;
+            // Update download links dynamically
+            document.getElementById('downloadTxtLink').href = `/download/${SESSION_ID}/${level}/txt`;
+            document.getElementById('downloadJsonLink').href = `/download/${SESSION_ID}/${level}/json`;
+        }
+    </script>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
